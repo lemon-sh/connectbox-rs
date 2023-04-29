@@ -6,7 +6,7 @@ pub enum Error {
     #[error("session token not found, are you logged in?")]
     NoSessionToken,
     #[error("incorrect password")]
-    IncorrectPassword,
+    IncorrectCode,
     #[error("unexpected response from the server: {0:?}")]
     UnexpectedResponse(String),
 

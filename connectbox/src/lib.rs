@@ -71,7 +71,6 @@ impl ConnectBox {
         ];
         let req = self.http.post(self.getter_url.clone()).form(&form);
         let resp = req.send().await?.text().await?;
-        println!("{resp:?}");
         let obj = quick_xml::de::from_str(&resp)?;
         Ok(obj)
     }
@@ -94,7 +93,7 @@ impl ConnectBox {
         Ok(resp.text().await?)
     }
 
-    pub async fn login(&self, code: &str) -> Result<()> {
+    pub async fn login(&self, code: impl AsRef<str>) -> Result<()> {
         // get the session cookie
         self.http
             .get(self.base_url.join("common_page/login.html")?)
@@ -104,11 +103,11 @@ impl ConnectBox {
         // log in
         let fields = vec![
             ("Username".into(), "NULL".into()),
-            ("Password".into(), code.into()),
+            ("Password".into(), code.as_ref().into()),
         ];
         let response = self.xml_setter(functions::LOGIN, Some(fields)).await?;
         if response == "idloginincorrect" {
-            return Err(Error::IncorrectPassword);
+            return Err(Error::IncorrectCode);
         }
         let sid = response
             .strip_prefix("successful;SID=")
