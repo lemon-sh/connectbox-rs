@@ -1,20 +1,17 @@
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
 #[derive(Deserialize, Debug)]
 pub struct LanUserTable {
     #[serde(rename = "Ethernet")]
-    pub ethernet: ClientInfos,
+    #[serde(deserialize_with = "unwrap_xml_list")]
+    pub ethernet: Vec<ClientInfo>,
     #[serde(rename = "WIFI")]
-    pub wifi: ClientInfos,
+    #[serde(deserialize_with = "unwrap_xml_list")]
+    pub wifi: Vec<ClientInfo>,
     #[serde(rename = "totalClient")]
     pub total_clients: u32,
     #[serde(rename = "Customer")]
     pub customer: String,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct ClientInfos {
-    pub clientinfo: Vec<ClientInfo>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -31,4 +28,19 @@ pub struct ClientInfo {
     #[serde(rename = "leaseTime")]
     pub lease_time: String,
     pub speed: u32,
+}
+
+#[derive(Deserialize)]
+struct List<T> {
+    #[serde(rename = "$value")]
+    #[serde(default = "Vec::default")]
+    elems: Vec<T>,
+}
+
+fn unwrap_xml_list<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>
+{
+    Ok(List::deserialize(deserializer)?.elems)
 }
