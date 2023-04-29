@@ -1,5 +1,5 @@
 # connectbox-rs
-API client library for the Compal CH7465CE, which is a cable modem provided by various European ISPs under the name Connect Box.
+API client library for the Compal CH7465LG, which is a cable modem provided by various European ISPs under the name Connect Box.
 
 For more information, see the crate documentation.
 
