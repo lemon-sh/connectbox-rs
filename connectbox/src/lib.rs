@@ -26,11 +26,11 @@ pub struct ConnectBox {
     base_url: Url,
     getter_url: Url,
     setter_url: Url,
-    auto_reauth: bool
+    auto_reauth: bool,
 }
 
 impl ConnectBox {
-    pub fn new(address: impl Display, code: String) -> Result<Self> {
+    pub fn new(address: impl Display, code: String, auto_reauth: bool) -> Result<Self> {
         let cookie_store = Arc::new(Jar::default());
         let http = Client::builder()
             .user_agent("Mozilla/5.0")
@@ -47,7 +47,7 @@ impl ConnectBox {
             getter_url,
             setter_url,
             code,
-            auto_reauth: false
+            auto_reauth,
         })
     }
 
@@ -80,9 +80,11 @@ impl ConnectBox {
             if resp.status().is_redirection() {
                 if self.auto_reauth && !reauthed {
                     reauthed = true;
+                    tracing::debug!("session has expired, attempting reauth");
+                    self._login().await?;
                     continue;
                 }
-                return Err(Error::NotAuthorized)
+                return Err(Error::NotAuthorized);
             }
             return Ok(quick_xml::de::from_str(&resp.text().await?)?);
         }
@@ -110,20 +112,26 @@ impl ConnectBox {
             if resp.status().is_redirection() {
                 if self.auto_reauth && !reauthed {
                     reauthed = true;
+                    tracing::debug!("session has expired, attempting reauth");
+                    self._login().await?;
                     continue;
                 }
-                return Err(Error::NotAuthorized)
+                return Err(Error::NotAuthorized);
             }
             return Ok(resp.text().await?);
         }
     }
 
     async fn _login(&self) -> Result<()> {
-        let fields = vec![
+        let session_token = self.cookie("sessionToken")?.ok_or(Error::NoSessionToken)?;
+        let form: Vec<(Cow<str>, Cow<str>)> = vec![
+            ("token".into(), session_token.into()),
+            ("fun".into(), functions::LOGIN.to_string().into()),
             ("Username".into(), "NULL".into()),
             ("Password".into(), (&self.code).into()),
         ];
-        let response = self.xml_setter(functions::LOGIN, Some(fields)).await?;
+        let req = self.http.post(self.setter_url.clone()).form(&form);
+        let response = req.send().await?.text().await?;
         if response == "idloginincorrect" {
             return Err(Error::IncorrectCode);
         }

@@ -11,7 +11,7 @@ async fn main() -> Result<()> {
     let ip = args.next().expect("no ip specified");
     let code = args.next().expect("no code specified");
 
-    let connect_box = ConnectBox::new(ip, code)?;
+    let connect_box = ConnectBox::new(ip, code, true)?;
     connect_box.login().await?;
 
     let devices = connect_box.get_devices().await?;
