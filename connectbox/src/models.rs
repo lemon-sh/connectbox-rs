@@ -1,3 +1,6 @@
+use std::time::Duration;
+
+use serde::de::Error;
 use serde::{Deserialize, Deserializer};
 
 #[derive(Deserialize, Debug)]
@@ -26,7 +29,8 @@ pub struct ClientInfo {
     #[serde(rename = "MACAddr")]
     pub mac: String,
     #[serde(rename = "leaseTime")]
-    pub lease_time: String,
+    #[serde(deserialize_with = "deserialize_lease_time")]
+    pub lease_time: Duration,
     pub speed: u32,
 }
 
@@ -40,7 +44,31 @@ struct List<T> {
 fn unwrap_xml_list<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
     D: Deserializer<'de>,
-    T: Deserialize<'de>
+    T: Deserialize<'de>,
 {
     Ok(List::deserialize(deserializer)?.elems)
+}
+
+fn deserialize_lease_time<'de, D>(d: D) -> Result<Duration, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let mut fields = <&str as Deserialize>::deserialize(d)?.split(':').map(|f| {
+        f.parse::<u32>()
+            .map_err(|e| D::Error::custom(e.to_string()))
+    });
+    let days = fields
+        .next()
+        .ok_or(D::Error::custom("no days field in lease time"))??;
+    let hours = fields
+        .next()
+        .ok_or(D::Error::custom("no hours field in lease time"))??;
+    let mins = fields
+        .next()
+        .ok_or(D::Error::custom("no mins field in lease time"))??;
+    let secs = fields
+        .next()
+        .ok_or(D::Error::custom("no secs field in lease time"))??;
+    let secs_total = days * 86400 + hours * 3600 + mins * 60 + secs;
+    Ok(Duration::from_secs(secs_total as u64))
 }
