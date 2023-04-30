@@ -9,6 +9,8 @@ pub enum Error {
     IncorrectCode,
     #[error("unexpected response from the server: {0:?}")]
     UnexpectedResponse(String),
+    #[error("you are not logged in, or perhaps the session has expired")]
+    NotAuthorized,
 
     #[error(transparent)]
     URLParseError(#[from] url::ParseError),
