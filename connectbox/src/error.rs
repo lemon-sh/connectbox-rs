@@ -1,6 +1,7 @@
 use reqwest::header::ToStrError;
 use thiserror::Error;
 
+/// The error type used globally by the library.
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("session token not found, are you logged in?")]

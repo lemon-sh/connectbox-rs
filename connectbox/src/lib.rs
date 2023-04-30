@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, fmt::Display, sync::Arc};
 
-use error::Error;
+pub use error::Error;
 use reqwest::{
     cookie::{CookieStore, Jar},
     redirect::Policy,
@@ -10,11 +10,13 @@ use reqwest::{
 };
 use serde::de::DeserializeOwned;
 
-pub mod error;
+mod error;
 mod functions;
+/// Data structures used by the library.
 pub mod models;
 
-pub(crate) type Result<T> = std::result::Result<T, error::Error>;
+// A Result type based on the library's Error
+pub type Result<T> = std::result::Result<T, error::Error>;
 
 type Field<'a, 'b> = (Cow<'a, str>, Cow<'b, str>);
 
@@ -30,6 +32,9 @@ pub struct ConnectBox {
 }
 
 impl ConnectBox {
+    /// Create a new client associated with the specified address. You must call [`login`](Self::login()) before use.
+    /// * `code` - the router password
+    /// * `auto_reauth` - whether to automatically re-authenticate when the session expires
     pub fn new(address: impl Display, code: String, auto_reauth: bool) -> Result<Self> {
         let cookie_store = Arc::new(Jar::default());
         let http = Client::builder()
@@ -144,6 +149,7 @@ impl ConnectBox {
         Ok(())
     }
 
+    /// Login to the router. This method must be called before using the client.
     pub async fn login(&self) -> Result<()> {
         // get the session cookie
         self.http
@@ -154,6 +160,7 @@ impl ConnectBox {
         self._login().await
     }
 
+    /// Get all devices connected to the router.
     pub async fn get_devices(&self) -> Result<models::LanUserTable> {
         self.xml_getter(functions::LAN_TABLE).await
     }
