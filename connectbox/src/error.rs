@@ -1,4 +1,3 @@
-use reqwest::header::ToStrError;
 use thiserror::Error;
 
 /// The error type used globally by the library.
@@ -12,11 +11,15 @@ pub enum Error {
     UnexpectedResponse(String),
     #[error("you are not logged in, or perhaps the session has expired")]
     NotAuthorized,
+    #[error("access denied, most likely someone else is already logged in")]
+    AccessDenied,
+    #[error("an unexpected redirection has occurred: {0:?}")]
+    UnexpectedRedirect(String),
 
     #[error(transparent)]
     URLParseError(#[from] url::ParseError),
     #[error(transparent)]
-    InvalidHeaderValue(#[from] ToStrError),
+    InvalidHeaderValue(#[from] reqwest::header::ToStrError),
     #[error(transparent)]
     HttpError(#[from] reqwest::Error),
     #[error(transparent)]

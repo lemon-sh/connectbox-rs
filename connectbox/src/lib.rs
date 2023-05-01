@@ -6,7 +6,7 @@ pub use error::Error;
 use reqwest::{
     cookie::{CookieStore, Jar},
     redirect::Policy,
-    Client, Url,
+    Client, Url, header::HeaderValue,
 };
 use serde::de::DeserializeOwned;
 
@@ -15,7 +15,7 @@ mod functions;
 /// Data structures used by the library.
 pub mod models;
 
-// A Result type based on the library's Error
+/// A Result type based on the library's Error
 pub type Result<T> = std::result::Result<T, error::Error>;
 
 type Field<'a, 'b> = (Cow<'a, str>, Cow<'b, str>);
@@ -85,7 +85,7 @@ impl ConnectBox {
             if resp.status().is_redirection() {
                 if self.auto_reauth && !reauthed {
                     reauthed = true;
-                    tracing::debug!("session has expired, attempting reauth");
+                    tracing::info!("session <{}> has expired, attempting reauth", self.cookie("SID")?.as_deref().unwrap_or("unknown"));
                     self._login().await?;
                     continue;
                 }
@@ -117,7 +117,7 @@ impl ConnectBox {
             if resp.status().is_redirection() {
                 if self.auto_reauth && !reauthed {
                     reauthed = true;
-                    tracing::debug!("session has expired, attempting reauth");
+                    tracing::info!("session <{}> has expired, attempting reauth", self.cookie("SID")?.as_deref().unwrap_or("unknown"));
                     self._login().await?;
                     continue;
                 }
@@ -136,13 +136,25 @@ impl ConnectBox {
             ("Password".into(), (&self.code).into()),
         ];
         let req = self.http.post(self.setter_url.clone()).form(&form);
-        let response = req.send().await?.text().await?;
-        if response == "idloginincorrect" {
+        let resp = req.send().await?;
+        if resp.status().is_redirection() {
+            if let Some(location) = resp.headers().get("Location").map(HeaderValue::to_str) {
+                let location = location?;
+                return if location == "../common_page/Access-denied.html" {
+                    Err(Error::AccessDenied)
+                } else {
+                    Err(Error::UnexpectedRedirect(location.to_string()))
+                }
+            }
+        }
+        let resp_text = resp.text().await?;
+        if resp_text == "idloginincorrect" {
             return Err(Error::IncorrectCode);
         }
-        let sid = response
+        let sid = resp_text
             .strip_prefix("successful;SID=")
-            .ok_or_else(|| Error::UnexpectedResponse(response.clone()))?;
+            .ok_or_else(|| Error::UnexpectedResponse(resp_text.clone()))?;
+        tracing::info!("session <{sid}>: logged in successfully");
         self.cookie_store
             .add_cookie_str(&format!("SID={sid}"), &self.base_url);
 
