@@ -43,7 +43,6 @@ pub struct PortForwards {
     #[serde(rename = "subnetmask")]
     pub subnet_mask: Ipv4Addr,
     #[serde(rename = "instance")]
-    #[serde(deserialize_with = "unwrap_xml_list")]
     pub entries: Vec<PortForwardEntry>,
 }
 

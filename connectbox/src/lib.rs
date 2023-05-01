@@ -173,7 +173,12 @@ impl ConnectBox {
     }
 
     /// Get all devices connected to the router.
-    pub async fn get_devices(&self) -> Result<models::LanUserTable> {
+    pub async fn devices(&self) -> Result<models::LanUserTable> {
         self.xml_getter(functions::LAN_TABLE).await
+    }
+
+    /// Get all port forwarding entries.
+    pub async fn port_forwards(&self) -> Result<models::PortForwards> {
+        self.xml_getter(functions::FORWARDS).await
     }
 }
