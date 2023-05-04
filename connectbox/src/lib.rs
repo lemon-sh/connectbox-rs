@@ -15,7 +15,7 @@ use serde::de::DeserializeOwned;
 
 mod error;
 mod functions;
-/// Data structures used by the library.
+/// Data structures used by the library
 pub mod models;
 
 /// A Result type based on the library's Error
@@ -167,7 +167,7 @@ impl ConnectBox {
         Ok(())
     }
 
-    /// Login to the router. This method must be called before using the client.
+    /// Log in to the router. This method must be called before using the client.
     pub async fn login(&self) -> Result<()> {
         // get the session cookie
         self.http
@@ -178,7 +178,7 @@ impl ConnectBox {
         self._login().await
     }
 
-    /// Logout of the router.
+    /// Log out of the router.
     ///
     /// The Connect Box allows only one session at a time, thus you should call this method after you're done with using the client, so that other users can log in.
     pub async fn logout(&self) -> Result<()> {
@@ -201,6 +201,8 @@ impl ConnectBox {
     }
 
     /// Toggle or remove port forwards.
+    /// 
+    /// This function accepts a predicate that will be called for every existing port forward. It should decide what to do with each port forward and return a [`PortForwardAction`].
     pub async fn edit_port_forwards<F>(&self, mut f: F) -> Result<()>
     where
         F: FnMut(models::PortForwardEntry) -> PortForwardAction,
@@ -276,10 +278,15 @@ impl ConnectBox {
     }
 }
 
+/// Specifies the action to perform with a given port forward. Used in conjunction with [`ConnectBox::edit_port_forwards`]
 pub enum PortForwardAction {
+    /// Don't do anything with the port forward
     Keep,
+    /// Enable the port forward
     Enable,
+    /// Disable the port forward
     Disable,
+    /// Delete the port forward
     Delete,
 }
 
