@@ -15,6 +15,8 @@ pub enum Error {
     AccessDenied,
     #[error("an unexpected redirection has occurred: {0:?}")]
     UnexpectedRedirect(String),
+    #[error("remote error: {0:?}")]
+    Remote(String),
 
     #[error(transparent)]
     URLParseError(#[from] url::ParseError),

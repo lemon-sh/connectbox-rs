@@ -1,12 +1,15 @@
 //! API client library for the Compal CH7465CE, which is a cable modem provided by various European ISPs under the name Connect Box.
 
+#![allow(clippy::missing_errors_doc)]
 use std::{borrow::Cow, fmt::Display, sync::Arc};
 
 pub use error::Error;
+use models::PortForwardEntry;
 use reqwest::{
     cookie::{CookieStore, Jar},
+    header::HeaderValue,
     redirect::Policy,
-    Client, Url, header::HeaderValue,
+    Client, Url,
 };
 use serde::de::DeserializeOwned;
 
@@ -47,16 +50,16 @@ impl ConnectBox {
         let setter_url = base_url.join("xml/setter.xml")?;
         Ok(ConnectBox {
             http,
+            code,
             cookie_store,
             base_url,
             getter_url,
             setter_url,
-            code,
             auto_reauth,
         })
     }
 
-    fn cookie<'a>(&self, name: &str) -> Result<Option<String>> {
+    fn cookie(&self, name: &str) -> Result<Option<String>> {
         let Some(cookies) = self.cookie_store.cookies(&self.base_url) else {
             return Ok(None)
         };
@@ -66,9 +69,8 @@ impl ConnectBox {
         };
         cookie_start += name.len() + 1;
         let cookie_end = cookies[cookie_start..]
-            .find(";")
-            .map(|p| p + cookie_start)
-            .unwrap_or(cookies.len());
+            .find(';')
+            .map_or(cookies.len(), |p| p + cookie_start);
         Ok(Some(cookies[cookie_start..cookie_end].to_string()))
     }
 
@@ -76,16 +78,20 @@ impl ConnectBox {
         let mut reauthed = false;
         loop {
             let session_token = self.cookie("sessionToken")?.ok_or(Error::NoSessionToken)?;
-            let form: Vec<Field> = vec![
+            let form: &[Field] = &[
                 ("token".into(), session_token.into()),
                 ("fun".into(), function.to_string().into()),
             ];
-            let req = self.http.post(self.getter_url.clone()).form(&form);
+            tracing::debug!("Executing getter {function}");
+            let req = self.http.post(self.getter_url.clone()).form(form);
             let resp = req.send().await?;
             if resp.status().is_redirection() {
                 if self.auto_reauth && !reauthed {
                     reauthed = true;
-                    tracing::info!("session <{}> has expired, attempting reauth", self.cookie("SID")?.as_deref().unwrap_or("unknown"));
+                    tracing::info!(
+                        "session <{}> has expired, attempting reauth",
+                        self.cookie("SID")?.as_deref().unwrap_or("unknown")
+                    );
                     self._login().await?;
                     continue;
                 }
@@ -95,29 +101,29 @@ impl ConnectBox {
         }
     }
 
-    async fn xml_setter(
-        &self,
-        function: u32,
-        fields: Option<impl AsRef<[Field<'_, '_>]>>,
-    ) -> Result<String> {
+    async fn xml_setter(&self, function: u32, fields: Option<&[Field<'_, '_>]>) -> Result<String> {
         let mut reauthed = false;
         loop {
             let session_token = self.cookie("sessionToken")?.ok_or(Error::NoSessionToken)?;
-            let mut form: Vec<(Cow<str>, Cow<str>)> = vec![
+            let mut form = vec![
                 ("token".into(), session_token.into()),
                 ("fun".into(), function.to_string().into()),
             ];
-            if let Some(fields) = &fields {
-                for (key, value) in fields.as_ref() {
+            if let Some(fields) = fields {
+                for (key, value) in fields {
                     form.push((key.clone(), value.clone()));
                 }
             }
+            tracing::debug!("Executing setter {function} with body {form:?}");
             let req = self.http.post(self.setter_url.clone()).form(&form);
             let resp = req.send().await?;
             if resp.status().is_redirection() {
                 if self.auto_reauth && !reauthed {
                     reauthed = true;
-                    tracing::info!("session <{}> has expired, attempting reauth", self.cookie("SID")?.as_deref().unwrap_or("unknown"));
+                    tracing::info!(
+                        "session <{}> has expired, attempting reauth",
+                        self.cookie("SID")?.as_deref().unwrap_or("unknown")
+                    );
                     self._login().await?;
                     continue;
                 }
@@ -129,13 +135,13 @@ impl ConnectBox {
 
     async fn _login(&self) -> Result<()> {
         let session_token = self.cookie("sessionToken")?.ok_or(Error::NoSessionToken)?;
-        let form: Vec<(Cow<str>, Cow<str>)> = vec![
+        let form: &[Field] = &[
             ("token".into(), session_token.into()),
             ("fun".into(), functions::LOGIN.to_string().into()),
             ("Username".into(), "NULL".into()),
             ("Password".into(), (&self.code).into()),
         ];
-        let req = self.http.post(self.setter_url.clone()).form(&form);
+        let req = self.http.post(self.setter_url.clone()).form(form);
         let resp = req.send().await?;
         if resp.status().is_redirection() {
             if let Some(location) = resp.headers().get("Location").map(HeaderValue::to_str) {
@@ -144,7 +150,7 @@ impl ConnectBox {
                     Err(Error::AccessDenied)
                 } else {
                     Err(Error::UnexpectedRedirect(location.to_string()))
-                }
+                };
             }
         }
         let resp_text = resp.text().await?;
@@ -172,13 +178,120 @@ impl ConnectBox {
         self._login().await
     }
 
+    /// Logout of the router.
+    ///
+    /// The Connect Box allows only one session at a time, thus you should call this method after you're done with using the client, so that other users can log in.
+    pub async fn logout(&self) -> Result<()> {
+        self.xml_setter(functions::LOGOUT, None).await?;
+        tracing::info!(
+            "session <{}>: logged out",
+            self.cookie("SID")?.as_deref().unwrap_or("unknown")
+        );
+        Ok(())
+    }
+
     /// Get all devices connected to the router.
     pub async fn devices(&self) -> Result<models::LanUserTable> {
         self.xml_getter(functions::LAN_TABLE).await
     }
 
-    /// Get all port forwarding entries.
+    /// Get all port forwards.
     pub async fn port_forwards(&self) -> Result<models::PortForwards> {
         self.xml_getter(functions::FORWARDS).await
+    }
+
+    /// Toggle or remove port forwards.
+    pub async fn edit_port_forwards<F>(&self, mut f: F) -> Result<()>
+    where
+        F: FnMut(models::PortForwardEntry) -> PortForwardAction,
+    {
+        let mut instance = String::new();
+        let mut enable = String::new();
+        let mut delete = String::new();
+        for entry in self.port_forwards().await?.entries {
+            let id = entry.id;
+            match f(entry) {
+                PortForwardAction::Enable => {
+                    enable.push_star("1");
+                    delete.push_star("0");
+                }
+                PortForwardAction::Disable => {
+                    enable.push_star("0");
+                    delete.push_star("0");
+                }
+                PortForwardAction::Delete => {
+                    enable.push_star("0");
+                    delete.push_star("1");
+                }
+                PortForwardAction::Keep => continue,
+            }
+            instance.push_star(&id.to_string());
+        }
+        let fields = [
+            ("action".into(), "apply".into()),
+            ("instance".into(), instance.into()),
+            ("local_IP".into(), "".into()),
+            ("start_port".into(), "".into()),
+            ("end_port".into(), "".into()),
+            ("start_portIn".into(), "".into()),
+            ("end_portIn".into(), "".into()),
+            ("protocol".into(), "".into()),
+            ("enable".into(), enable.into()),
+            ("delete".into(), delete.into()),
+            ("idd".into(), "".into()),
+        ];
+        let resp = self
+            .xml_setter(functions::EDIT_FORWARDS, Some(&fields))
+            .await?;
+        if resp.is_empty() {
+            Ok(())
+        } else {
+            Err(Error::Remote(resp))
+        }
+    }
+
+    /// Add a port forward. The `id` field of the port is ignored.
+    pub async fn add_port_forward(&self, port: &PortForwardEntry) -> Result<()> {
+        let fields = [
+            ("action".into(), "add".into()),
+            ("instance".into(), "".into()),
+            ("local_IP".into(), port.local_ip.to_string().into()),
+            ("start_port".into(), port.start_port.to_string().into()),
+            ("end_port".into(), port.end_port.to_string().into()),
+            ("start_portIn".into(), port.start_port_in.to_string().into()),
+            ("end_portIn".into(), port.end_port_in.to_string().into()),
+            ("protocol".into(), port.protocol.id().to_string().into()),
+            ("enable".into(), u8::from(port.enable).to_string().into()),
+            ("delete".into(), "0".into()),
+            ("idd".into(), "".into()),
+        ];
+        let resp = self
+            .xml_setter(functions::EDIT_FORWARDS, Some(&fields))
+            .await?;
+        if resp.is_empty() {
+            Ok(())
+        } else {
+            Err(Error::Remote(resp))
+        }
+    }
+}
+
+pub enum PortForwardAction {
+    Keep,
+    Enable,
+    Disable,
+    Delete,
+}
+
+trait StringExt {
+    fn push_star(&mut self, string: &str);
+}
+
+impl StringExt for String {
+    fn push_star(&mut self, string: &str) {
+        if !self.is_empty() {
+            self.push('*');
+        }
+        self.push_str(string);
     }
 }

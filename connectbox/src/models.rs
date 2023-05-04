@@ -1,7 +1,7 @@
 use std::net::Ipv4Addr;
 use std::time::Duration;
 
-use serde::de::{Error, self, Unexpected};
+use serde::de::{self, Error, Unexpected};
 use serde::{Deserialize, Deserializer};
 
 #[derive(Deserialize, Debug)]
@@ -59,7 +59,7 @@ pub struct PortForwardEntry {
     pub end_port_in: u16,
     pub protocol: PortForwardProtocol,
     #[serde(deserialize_with = "bool_from_int")]
-    pub enable: bool
+    pub enable: bool,
 }
 
 #[derive(Debug)]
@@ -70,7 +70,7 @@ pub enum PortForwardProtocol {
 }
 
 impl PortForwardProtocol {
-    fn id(&self) -> u8 {
+    pub(crate) fn id(&self) -> u8 {
         match self {
             PortForwardProtocol::Tcp => 1,
             PortForwardProtocol::Udp => 2,
@@ -101,7 +101,7 @@ where
         0 => Ok(false),
         1 => Ok(true),
         other => Err(de::Error::invalid_value(
-            Unexpected::Unsigned(other as u64),
+            Unexpected::Unsigned(u64::from(other)),
             &"zero or one",
         )),
     }
@@ -143,5 +143,5 @@ where
         .next()
         .ok_or(D::Error::custom("no secs field in lease time"))??;
     let secs_total = days * 86400 + hours * 3600 + mins * 60 + secs;
-    Ok(Duration::from_secs(secs_total as u64))
+    Ok(Duration::from_secs(u64::from(secs_total)))
 }
