@@ -9,7 +9,7 @@ There is a very work-in-progress shell available in the connectbox-shell crate i
 ### IPv6 Notice
 I am running my modem in the IPv4 mode, so the options available to me are different than what IPv6 mode users see. Thus, this crate will likely not work correctly with IPv6 mode Connect Boxes.
 
-I am always grateful for any contributions adding IPv6 support, though.
+Contributions adding IPv6 support are always welcome, though.
 
 ### Credits
 Special thanks to the authors of the following projects:
