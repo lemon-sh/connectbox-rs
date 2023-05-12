@@ -1,5 +1,5 @@
 // This example shows you how to add, edit and remove port forwading entries.
-// Usage: cargo run --example port_forwards -- <Connect Box IP> <login code> <local IP>
+// Usage: cargo run --example port_forwards -- <Connect Box IP> <login password> <local IP>
 
 use std::{env, net::Ipv4Addr};
 
@@ -16,7 +16,7 @@ async fn main() -> Result<()> {
 
     let mut args = env::args().skip(1);
     let ip = args.next().expect("no ip specified");
-    let code = args.next().expect("no code specified");
+    let password = args.next().expect("no password specified");
     let local_ip: Ipv4Addr = args
         .next()
         .expect("no local ip specified")
@@ -24,7 +24,7 @@ async fn main() -> Result<()> {
         .expect("local ip is not a valid ipv4 address");
 
     // first, we create a new API client and log in to the router.
-    let connect_box = ConnectBox::new(ip, code, true)?;
+    let connect_box = ConnectBox::new(ip, password, true)?;
     connect_box.login().await?;
 
     // then, we remove all port forwarding entries for the local ip

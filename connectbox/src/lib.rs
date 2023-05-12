@@ -26,7 +26,7 @@ type Field<'a, 'b> = (Cow<'a, str>, Cow<'b, str>);
 /// The entry point of the library - the API client
 pub struct ConnectBox {
     http: Client,
-    code: String,
+    password: String,
     cookie_store: Arc<Jar>,
     base_url: Url,
     getter_url: Url,
@@ -36,9 +36,9 @@ pub struct ConnectBox {
 
 impl ConnectBox {
     /// Create a new client associated with the specified address. You must call [`login`](Self::login()) before use.
-    /// * `code` - the router password
+    /// * `password` - the router password
     /// * `auto_reauth` - whether to automatically re-authenticate when the session expires
-    pub fn new(address: impl Display, code: String, auto_reauth: bool) -> Result<Self> {
+    pub fn new(address: impl Display, password: String, auto_reauth: bool) -> Result<Self> {
         let cookie_store = Arc::new(Jar::default());
         let http = Client::builder()
             .user_agent("Mozilla/5.0")
@@ -50,7 +50,7 @@ impl ConnectBox {
         let setter_url = base_url.join("xml/setter.xml")?;
         Ok(ConnectBox {
             http,
-            code,
+            password,
             cookie_store,
             base_url,
             getter_url,
@@ -139,7 +139,7 @@ impl ConnectBox {
             ("token".into(), session_token.into()),
             ("fun".into(), functions::LOGIN.to_string().into()),
             ("Username".into(), "NULL".into()),
-            ("Password".into(), (&self.code).into()),
+            ("Password".into(), (&self.password).into()),
         ];
         let req = self.http.post(self.setter_url.clone()).form(form);
         let resp = req.send().await?;
@@ -155,7 +155,7 @@ impl ConnectBox {
         }
         let resp_text = resp.text().await?;
         if resp_text == "idloginincorrect" {
-            return Err(Error::IncorrectCode);
+            return Err(Error::IncorrectPassword);
         }
         let sid = resp_text
             .strip_prefix("successful;SID=")
