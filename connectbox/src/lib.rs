@@ -1,4 +1,4 @@
-//! API client library for the Compal CH7465CE, which is a cable modem provided by various European ISPs under the name Connect Box.
+//! API client library for the Compal CH7465LG, which is a cable modem provided by various European ISPs under the name Connect Box.
 
 #![allow(clippy::missing_errors_doc)]
 use std::{borrow::Cow, fmt::Display, sync::Arc};
@@ -201,7 +201,7 @@ impl ConnectBox {
     }
 
     /// Toggle or remove port forwards.
-    /// 
+    ///
     /// This function accepts a predicate that will be called for every existing port forward. It should decide what to do with each port forward and return a [`PortForwardAction`].
     pub async fn edit_port_forwards<F>(&self, mut f: F) -> Result<()>
     where
@@ -262,7 +262,7 @@ impl ConnectBox {
             ("end_port".into(), port.end_port.to_string().into()),
             ("start_portIn".into(), port.start_port_in.to_string().into()),
             ("end_portIn".into(), port.end_port_in.to_string().into()),
-            ("protocol".into(), port.protocol.id().to_string().into()),
+            ("protocol".into(), port.protocol.id_str().into()),
             ("enable".into(), u8::from(port.enable).to_string().into()),
             ("delete".into(), "0".into()),
             ("idd".into(), "".into()),

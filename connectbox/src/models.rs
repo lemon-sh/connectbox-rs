@@ -70,11 +70,11 @@ pub enum PortForwardProtocol {
 }
 
 impl PortForwardProtocol {
-    pub(crate) fn id(&self) -> u8 {
+    pub(crate) fn id_str(&self) -> &str {
         match self {
-            PortForwardProtocol::Tcp => 1,
-            PortForwardProtocol::Udp => 2,
-            PortForwardProtocol::Both => 3,
+            PortForwardProtocol::Tcp => "1",
+            PortForwardProtocol::Udp => "2",
+            PortForwardProtocol::Both => "3",
         }
     }
 }
