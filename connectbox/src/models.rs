@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::net::Ipv4Addr;
 use std::time::Duration;
 
@@ -90,6 +91,16 @@ impl<'de> Deserialize<'de> for PortForwardProtocol {
             3 => Ok(Self::Both),
             _ => Err(D::Error::custom("protocol not in range 1..=3")),
         }
+    }
+}
+
+impl Display for PortForwardProtocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            PortForwardProtocol::Tcp => "TCP",
+            PortForwardProtocol::Udp => "UDP",
+            PortForwardProtocol::Both => "Both",
+        })
     }
 }
 
