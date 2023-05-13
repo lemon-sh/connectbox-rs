@@ -19,7 +19,15 @@ pub(crate) struct Args {
 pub(crate) enum ShellCommand {
     Exit,
     #[command(name = "pfw")]
-    PortForwards,
+    PortForwards {
+        #[command(subcommand)]
+        cmd: PortForwardsCommand
+    }
+}
+
+#[derive(Parser, Debug)]
+pub(crate) enum PortForwardsCommand {
+    Show
 }
 
 pub(crate) fn shell_cmd() -> Command {

@@ -1,5 +1,4 @@
-use anstream::println;
-use color_print::cstr;
+use color_print::{cstr, cprintln};
 
 use clap::{FromArgMatches, Parser};
 use cli::Args;
@@ -11,6 +10,11 @@ use crate::{cli::ShellCommand, utils::QuotableArgs};
 
 mod cli;
 mod utils;
+mod commands;
+
+pub(crate) struct AppState {
+    connect_box: ConnectBox
+}
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
@@ -33,12 +37,13 @@ async fn main() -> Result<()> {
         .join(".connectbox-shell-history");
     let _err = rl.load_history(&history_path);
 
-    println!(cstr!("<blue!>Logging in..."));
-    let connectbox = ConnectBox::new(args.address, password, true)?;
-    connectbox.login().await?;
+    cprintln!("<blue!>Logging in...");
+    let connect_box = ConnectBox::new(args.address, password, true)?;
+    connect_box.login().await?;
+    let state = AppState { connect_box };
 
     loop {
-        match rl.readline(cstr!("<green!> > ")) {
+        match rl.readline(cstr!("\n<green!> > ")) {
             Ok(line) => {
                 if line.chars().all(char::is_whitespace) {
                     continue;
@@ -52,10 +57,10 @@ async fn main() -> Result<()> {
                 };
                 match cmd {
                     ShellCommand::Exit => break,
-                    ShellCommand::PortForwards => todo!(),
+                    ShellCommand::PortForwards { cmd } => commands::pfw::run(cmd, &state).await?,
                 }
             }
-            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => break,
+            Err(ReadlineError::Interrupted | ReadlineError::Eof) => break,
             Err(err) => {
                 println!("{err:?}");
                 break;
@@ -63,7 +68,7 @@ async fn main() -> Result<()> {
         }
     }
     println!("Logging out...");
-    connectbox.logout().await?;
+    state.connect_box.logout().await?;
 
     rl.save_history(&history_path)?;
     Ok(())
