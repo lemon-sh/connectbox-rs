@@ -279,6 +279,7 @@ impl ConnectBox {
 }
 
 /// Specifies the action to perform with a given port forward. Used in conjunction with [`ConnectBox::edit_port_forwards`]
+#[derive(Debug, Clone, Copy)]
 pub enum PortForwardAction {
     /// Don't do anything with the port forward
     Keep,

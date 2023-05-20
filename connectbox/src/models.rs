@@ -78,6 +78,16 @@ impl PortForwardProtocol {
             PortForwardProtocol::Both => "3",
         }
     }
+
+    #[must_use]
+    pub fn new(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "tcp" => Some(Self::Tcp),
+            "udp" => Some(Self::Udp),
+            "both" => Some(Self::Both),
+            _ => None,
+        }
+    }
 }
 
 impl<'de> Deserialize<'de> for PortForwardProtocol {
