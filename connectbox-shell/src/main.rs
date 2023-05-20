@@ -1,4 +1,4 @@
-use color_print::{cstr, cprintln};
+use color_print::{cprintln, cstr};
 
 use clap::{FromArgMatches, Parser};
 use cli::Args;
@@ -9,11 +9,11 @@ use rustyline::{error::ReadlineError, DefaultEditor};
 use crate::{cli::ShellCommand, utils::QuotableArgs};
 
 mod cli;
-mod utils;
 mod commands;
+mod utils;
 
 pub(crate) struct AppState {
-    connect_box: ConnectBox
+    connect_box: ConnectBox,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -51,10 +51,12 @@ async fn main() -> Result<()> {
                 let cmd = match shell_cmd.try_get_matches_from_mut(QuotableArgs::new(&line)) {
                     Ok(mut matches) => ShellCommand::from_arg_matches_mut(&mut matches)?,
                     Err(e) => {
+                        rl.add_history_entry(line)?;
                         e.print()?;
                         continue;
                     }
                 };
+                rl.add_history_entry(line)?;
                 match cmd {
                     ShellCommand::Exit => break,
                     ShellCommand::PortForwards { cmd } => commands::pfw::run(cmd, &state).await?,
@@ -67,7 +69,7 @@ async fn main() -> Result<()> {
             }
         }
     }
-    println!("Logging out...");
+    cprintln!("<blue!>Logging out...");
     state.connect_box.logout().await?;
 
     rl.save_history(&history_path)?;

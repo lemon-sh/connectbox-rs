@@ -1,3 +1,5 @@
+use std::net::Ipv4Addr;
+
 use clap::{Command, Parser, Subcommand};
 use tracing::Level;
 
@@ -17,17 +19,43 @@ pub(crate) struct Args {
 
 #[derive(Parser, Debug)]
 pub(crate) enum ShellCommand {
+    /// Log out and close the shell
     Exit,
+
+    /// Manage port forwards
     #[command(name = "pfw")]
     PortForwards {
         #[command(subcommand)]
-        cmd: PortForwardsCommand
-    }
+        cmd: PortForwardsCommand,
+    },
 }
 
 #[derive(Parser, Debug)]
 pub(crate) enum PortForwardsCommand {
-    Show
+    /// List all port forwards
+    Show,
+    /// Add a port forward
+    Add {
+        /// LAN address of the host to forward the port to
+        local_ip: Ipv4Addr,
+        /// External port range
+        range: String,
+        /// Internal port range. If unspecified, the same as external
+        int_range: Option<String>,
+        /// TCP, UDP or both
+        #[arg(short, default_value = "both")]
+        protocol: String,
+        /// Add this port forward in disabled state
+        #[arg(short)]
+        disable: bool,
+    },
+    /// Enable, disable or delete a port forward
+    Edit {
+        /// ID of the port. You can use `pfw show` to find it
+        id: u32,
+        /// Action to perform with the port. Can be either enable, disable or delete.
+        action: String
+    }
 }
 
 pub(crate) fn shell_cmd() -> Command {
