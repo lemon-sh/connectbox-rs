@@ -48,15 +48,15 @@ async fn main() -> Result<()> {
                 if line.chars().all(char::is_whitespace) {
                     continue;
                 }
-                let cmd = match shell_cmd.try_get_matches_from_mut(QuotableArgs::new(&line)) {
+                let matches = shell_cmd.try_get_matches_from_mut(QuotableArgs::new(&line));
+                rl.add_history_entry(line)?;
+                let cmd = match matches {
                     Ok(mut matches) => ShellCommand::from_arg_matches_mut(&mut matches)?,
                     Err(e) => {
-                        rl.add_history_entry(line)?;
                         e.print()?;
                         continue;
                     }
                 };
-                rl.add_history_entry(line)?;
                 match cmd {
                     ShellCommand::Exit => break,
                     ShellCommand::PortForwards { cmd } => commands::pfw::run(cmd, &state).await?,
