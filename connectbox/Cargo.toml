@@ -1,7 +1,7 @@
 [package]
 name = "connectbox"
 description = "API client library for the Compal CH7465LG, which is a cable modem provided by various European ISPs under the name Connect Box."
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "EUPL-1.2"
 repository = "https://git.lemonsh.moe/lemon/connectbox-rs"
