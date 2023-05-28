@@ -2,13 +2,12 @@ use crate::{cli::ShellCommand, utils::QuotableArgs};
 use clap::{FromArgMatches, Parser};
 use cli::Args;
 use color_eyre::Result;
-use color_print::{cformat, cprintln, cstr};
+use color_print::{cformat, cprintln};
 use connectbox::ConnectBox;
 use rustyline::{
     error::ReadlineError,
     highlight::Highlighter,
-    history::{DefaultHistory, FileHistory, MemHistory},
-    Completer, DefaultEditor, Editor, Helper, Hinter, Validator,
+    Completer, Editor, Helper, Hinter, Validator,
 };
 use std::borrow::Cow;
 

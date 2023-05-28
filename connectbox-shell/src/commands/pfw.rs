@@ -119,10 +119,10 @@ pub(crate) async fn run(cmd: PortForwardsCommand, state: &AppState) -> Result<()
                     }
                 })
                 .await?;
-            if !modified {
-                cprintln!("<red!>No port with id {id} exists");
+            if modified {
+                cprintln!("<green!>Done!");
             } else {
-                cprintln!("<green!>Done!")
+                cprintln!("<red!>No port with id {id} exists");
             }
         }
     }
