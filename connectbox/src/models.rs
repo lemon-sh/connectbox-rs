@@ -1,9 +1,9 @@
-use std::fmt::Display;
-use std::net::Ipv4Addr;
-use std::time::Duration;
+use std::{fmt::Display, net::Ipv4Addr, time::Duration};
 
-use serde::de::{self, Error, Unexpected};
-use serde::{Deserialize, Deserializer};
+use serde::{
+    de::{self, Error, Unexpected},
+    Deserialize, Deserializer,
+};
 
 #[derive(Deserialize, Debug)]
 pub struct LanUserTable {

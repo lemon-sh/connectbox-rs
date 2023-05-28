@@ -54,8 +54,8 @@ pub(crate) enum PortForwardsCommand {
         /// ID of the port. You can use `pfw show` to find it
         id: u32,
         /// Action to perform with the port. Can be either enable, disable or delete.
-        action: String
-    }
+        action: String,
+    },
 }
 
 pub(crate) fn shell_cmd() -> Command {

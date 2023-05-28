@@ -3,7 +3,10 @@ use std::vec;
 use ascii_table::{Align::Right, AsciiTable};
 use color_eyre::Result;
 use color_print::cprintln;
-use connectbox::{models::{PortForwardEntry, PortForwardProtocol}, PortForwardAction};
+use connectbox::{
+    models::{PortForwardEntry, PortForwardProtocol},
+    PortForwardAction,
+};
 use once_cell::sync::OnceCell;
 
 use crate::{cli::PortForwardsCommand, AppState};
@@ -101,24 +104,27 @@ pub(crate) async fn run(cmd: PortForwardsCommand, state: &AppState) -> Result<()
                 }
                 _ => {
                     cprintln!("<red!>Invalid action {action:?}");
-                    return Ok(())
+                    return Ok(());
                 }
             };
             let mut modified = false;
-            state.connect_box.edit_port_forwards(|p| {
-                if p.id == id {
-                    modified = true;
-                    action
-                } else {
-                    PortForwardAction::Keep
-                }
-            }).await?;
+            state
+                .connect_box
+                .edit_port_forwards(|p| {
+                    if p.id == id {
+                        modified = true;
+                        action
+                    } else {
+                        PortForwardAction::Keep
+                    }
+                })
+                .await?;
             if !modified {
                 cprintln!("<red!>No port with id {id} exists");
             } else {
                 cprintln!("<green!>Done!")
             }
-        },
+        }
     }
     Ok(())
 }

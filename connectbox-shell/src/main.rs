@@ -1,12 +1,16 @@
-use color_print::{cprintln, cstr};
-
+use crate::{cli::ShellCommand, utils::QuotableArgs};
 use clap::{FromArgMatches, Parser};
 use cli::Args;
 use color_eyre::Result;
+use color_print::{cformat, cprintln, cstr};
 use connectbox::ConnectBox;
-use rustyline::{error::ReadlineError, DefaultEditor};
-
-use crate::{cli::ShellCommand, utils::QuotableArgs};
+use rustyline::{
+    error::ReadlineError,
+    highlight::Highlighter,
+    history::{DefaultHistory, FileHistory, MemHistory},
+    Completer, DefaultEditor, Editor, Helper, Hinter, Validator,
+};
+use std::borrow::Cow;
 
 mod cli;
 mod commands;
@@ -14,6 +18,40 @@ mod utils;
 
 pub(crate) struct AppState {
     connect_box: ConnectBox,
+}
+
+#[derive(Completer, Helper, Hinter, Validator)]
+struct GreenPrompt;
+
+impl Highlighter for GreenPrompt {
+    fn highlight_prompt<'b, 's: 'b, 'p: 'b>(
+        &'s self,
+        prompt: &'p str,
+        _default: bool,
+    ) -> std::borrow::Cow<'b, str> {
+        cformat!("<green!>{prompt}").into()
+    }
+}
+
+#[derive(Completer, Helper, Hinter, Validator)]
+struct PasswordPrompt;
+
+impl Highlighter for PasswordPrompt {
+    fn highlight_prompt<'b, 's: 'b, 'p: 'b>(
+        &'s self,
+        prompt: &'p str,
+        _default: bool,
+    ) -> std::borrow::Cow<'b, str> {
+        cformat!("<red!>{prompt}").into()
+    }
+
+    fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
+        "*".repeat(line.len()).into()
+    }
+
+    fn highlight_char(&self, _line: &str, _pos: usize) -> bool {
+        true
+    }
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -26,10 +64,14 @@ async fn main() -> Result<()> {
         .with_max_level(args.log_level)
         .init();
 
-    let mut rl = DefaultEditor::new()?;
+    let mut rl = Editor::new()?;
+    rl.set_helper(Some(GreenPrompt));
+
     let password = if let Some(password) = args.password {
         password
     } else {
+        let mut rl = Editor::new()?;
+        rl.set_helper(Some(PasswordPrompt));
         rl.readline("Password: ")?
     };
     let history_path = dirs::data_dir()
@@ -43,7 +85,7 @@ async fn main() -> Result<()> {
     let state = AppState { connect_box };
 
     loop {
-        match rl.readline(cstr!("\n<green!> > ")) {
+        match rl.readline("\n >> ") {
             Ok(line) => {
                 if line.chars().all(char::is_whitespace) {
                     continue;
