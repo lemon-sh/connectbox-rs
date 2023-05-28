@@ -2,7 +2,7 @@ use std::vec;
 
 use ascii_table::{Align::Right, AsciiTable};
 use color_eyre::Result;
-use color_print::cprintln;
+use color_print::{cprintln, cprint};
 use connectbox::{
     models::{PortForwardEntry, PortForwardProtocol},
     PortForwardAction,
@@ -44,7 +44,7 @@ pub(crate) async fn run(cmd: PortForwardsCommand, state: &AppState) -> Result<()
             let rendered_table = PORT_FORWARDING_TABLE
                 .get_or_init(init_port_forwarding_table)
                 .format(table_entries);
-            cprintln!(
+            cprint!(
                 "<black!>LAN IP: {}\nSubnet mask: {}\n</black!>{rendered_table}",
                 port_forwards.lan_ip,
                 port_forwards.subnet_mask
@@ -130,6 +130,11 @@ pub(crate) async fn run(cmd: PortForwardsCommand, state: &AppState) -> Result<()
 }
 
 fn parse_port_range(s: &str) -> Option<(u16, u16)> {
-    let (start, end) = s.split_once('-')?;
-    Some((start.parse().ok()?, end.parse().ok()?))
+    if let Some((start, end)) = s.split_once('-') {
+        Some((start.parse().ok()?, end.parse().ok()?))
+    } else if let Ok(port) = s.parse() {
+        Some((port, port))
+    } else {
+        None
+    }
 }
